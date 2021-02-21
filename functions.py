@@ -3,17 +3,9 @@ import time
 import requests
 from pygame import mixer
 
-
 resorts = {
-    "Breck": 3,
+    "Breckenridge": 3,
     "Keystone": 4
-}
-
-parameters = {
-    "resortCode": resorts["Keystone"],
-    "startDate": "2-19-2021",  # Edit This
-    "endDate": "2-21-2021",  # Edit This
-    "_": "1610557819293"
 }
 
 cookie = "_fbp=fb.1.1612150640394.1941926284; s_invisit=true; s_lv=1612490226129; s_lv_s=Less%20than%201%20day; " \
@@ -69,21 +61,24 @@ headers = {
 }
     
 
-def look_for_opening(start_date, end_date, resort):
+def look_for_opening(date, resort):
     s = sched.scheduler(time.time, time.sleep)
-    url = "https://www.epicpass.com/api/LiftAccessApi/GetCapacityControlReservationInventory?resortCode=" + str(resorts[resort]) + "&startDate=" + \
-          start_date.replace('-', '%2F') + "&endDate=" + end_date.replace('-', '%2F') + "&_=1612490591317"
+    date_string = date.replace('-', '%2F')
+    [month, day, year] = date.split('-')
+    full_date = '20' + '-'.join([year, month, day]) + 'T00:00:00'
+    url = "https://www.epicpass.com/api/LiftAccessApi/GetCapacityControlReservationInventory?resortCode=" + \
+          str(resorts[resort]) + "&startDate=" + date_string + "&endDate=" + date_string + "&_=1612490591317"
 
-    def do_something(sc):
+    def check_availability(sc):
         response = requests.get(url, headers=headers)
-        noinventorydays = response.json()["NoInventoryDays"]
-        available = '2021-02-20T00:00:00' not in noinventorydays
+        no_inventory_days = response.json()["NoInventoryDays"]
+        available = full_date not in no_inventory_days
         print(response.json()["NoInventoryDays"])
         if available:
             mixer.init()  # you must initialize the mixer
             alert = mixer.Sound('baegcdthipc.wav')
             alert.play()
-        s.enter(10, 1, do_something, (sc,))
+        s.enter(10, 1, check_availability, (sc,))
 
-    s.enter(1, 1, do_something, (s,))
+    s.enter(1, 1, check_availability, (s,))
     s.run()
